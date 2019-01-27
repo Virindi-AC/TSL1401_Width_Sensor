@@ -555,6 +555,7 @@ double processImage(int led)
   const int thresh = 600;
   bool seenedge;
 
+
   seenedge = false;
   for (int i=2; i<NPIXELS; i++)
   {
@@ -641,6 +642,39 @@ double processImage(int led)
   if (filWidth>10)    //check for a measurement > 1mm  otherwise treat as noise
   {
     widthsubpixel=(double)filWidth+m2-m1; 
+
+    //Perspective correction
+    //TODO: Correction for center LED
+    if (led != 1)
+    {
+      double translatedmin = minsteploc * 8.064 / 128.0;
+      double translatedmax = maxsteploc * 8.064 / 128.0;
+
+      if (led == 0)
+      {
+        double sss = translatedmax;
+        translatedmax = 8.064 - translatedmin;
+        translatedmin = 8.064 - sss;
+      }
+
+
+      double xl = -2.88394500; //Horizontal distance from inner LED to pixel 0
+      double yl = 8.36594500;  //Vertical distance from inner LED to sensing surface
+      double xf = 2.45832900;  //X point where filament tangent line hits X axis
+      double q1 = (yl / (xl - translatedmin));
+      double q2 = (yl / (xl - translatedmax));
+      double xpt1 = (q1 * translatedmin - xf) / (q1 - 1.0);
+      double ypt1 = xpt1 - xf;
+      double xpt2 = (q2 * translatedmax - xf) / (q2 - 1.0);
+      double ypt2 = xpt2 - xf;
+
+      double yd = ypt2 - ypt1;
+      double xd = xpt2 - xpt1;
+      double perspectivedist = sqrt(yd*yd+xd*xd);
+      double correctionratio = perspectivedist / (translatedmax-translatedmin);
+
+      widthsubpixel*=correctionratio;
+    }
   }
   else
   {
